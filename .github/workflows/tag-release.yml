@@ -1,0 +1,51 @@
+# Automatic git tags from pyproject.toml version.
+# When you bump version in pyproject.toml and push to main, this creates tag vX.Y.Z and pushes it.
+# You can also run it manually (Actions → "Tag release" → Run workflow) to tag the current version.
+
+name: Tag release
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - pyproject.toml
+  workflow_dispatch:
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to push tags
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # fetch all history so we can see all tags
+
+      - name: Get version from pyproject.toml
+        id: version
+        run: |
+          V=$(grep '^version\s*=' pyproject.toml | sed -E 's/.*=\s*["'\'']?([^"'\''\s]+)["'\'']?/\1/')
+          echo "version=$V" >> $GITHUB_OUTPUT
+          echo "tag=v$V" >> $GITHUB_OUTPUT
+          echo "Current version: $V → tag will be v$V"
+
+      - name: Check if tag already exists
+        id: check
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Tag $TAG already exists, skipping."
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Tag $TAG will be created."
+          fi
+
+      - name: Create and push tag
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG (from pyproject.toml)"
+          git push origin "$TAG"
