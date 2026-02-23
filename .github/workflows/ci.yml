@@ -1,5 +1,6 @@
 # CI: run tests on every push and pull request.
 # Uses an explicit venv so one Python environment is used for install and pytest.
+# (Push to PR branch triggers a new run for the latest commit.)
 
 name: CI
 
