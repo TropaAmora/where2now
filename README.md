@@ -125,6 +125,71 @@ Migrations use the app’s `Base` and `DATABASE_URL`; tables are created by `ale
 
 Tests use an **in-memory SQLite** DB (no real DB touched). `conftest.py` creates tables per test and overrides `get_db_session` so the API uses that DB. Use the `client` fixture for HTTP calls and the `db_session` fixture when you need to insert data directly (e.g. for get/update/delete tests).
 
+## CI/CD
+
+- **CI** (`.github/workflows/ci.yml`): On every push/PR to `main`/`master`, runs `pytest`. Check the **Actions** tab on GitHub.
+- **Automatic git tags** (`.github/workflows/tag-release.yml`): When you bump `version` in `pyproject.toml` and push to `main`, a tag `vX.Y.Z` is created and pushed. You can also run **Actions → Tag release → Run workflow** to tag the current version manually. Tags are only created if they don’t already exist.
+
+## Git workflow (main + develop)
+
+Branches: **main** (production-ready), **develop** (integration), and **feature branches** for new work.
+
+### 1. Pull the latest changes
+
+Always start from an up-to-date branch:
+
+```bash
+# If you're on main and want the latest from the remote:
+git checkout main
+git pull origin main
+
+# If you use develop and want it up to date:
+git checkout develop
+git pull origin develop
+```
+
+If `develop` doesn’t exist on the remote yet, create it and push once:  
+`git checkout -b develop && git push -u origin develop`
+
+### 2. Create a new branch for a feature/fix
+
+Create a branch from the branch you want to build on (usually **develop** for new features, **main** for hotfixes):
+
+```bash
+# Make sure you're up to date (see above), then:
+git checkout develop
+git pull origin develop
+git checkout -b feature/my-new-thing
+# or:  git checkout -b fix/something-broken
+```
+
+Now do your work on `feature/my-new-thing`. Commit as you go:
+
+```bash
+git add .
+git commit -m "Add or fix something"
+```
+
+### 3. Push your branch and open a PR
+
+```bash
+git push -u origin feature/my-new-thing
+```
+
+Then on GitHub: **Pull requests → New pull request**, choose `feature/my-new-thing` → `develop` (or `main` if it’s a hotfix). CI will run on the PR.
+
+### 4. After the PR is merged
+
+Update your local branches and delete the feature branch so you don’t reuse it by mistake:
+
+```bash
+git checkout develop
+git pull origin develop
+git branch -d feature/my-new-thing
+```
+
+Summary: **pull** → **branch off develop** → **work & commit** → **push** → **open PR** → **merge** → **pull develop again**.
+
 ## Open Items
 
 - Detailed data models and database schema
