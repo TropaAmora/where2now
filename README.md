@@ -112,6 +112,19 @@ delivery-optimizer/
     └── test_travel_times/
 ```
 
+## Alembic (Migrations)
+
+Migrations use the app’s `Base` and `DATABASE_URL`; tables are created by `alembic upgrade head`, not by running the API. For setup, workflow, and commands, see the **alembic-migrations** skill in `.cursor/skills/alembic-migrations/`.
+
+## Testing
+
+- **Run all tests** (from project root): `pytest`
+- **Run with output**: `pytest -v`
+- **Run one file**: `pytest tests/test_api/test_clients.py`
+- **Run one test**: `pytest tests/test_api/test_clients.py::test_create_client`
+
+Tests use an **in-memory SQLite** DB (no real DB touched). `conftest.py` creates tables per test and overrides `get_db_session` so the API uses that DB. Use the `client` fixture for HTTP calls and the `db_session` fixture when you need to insert data directly (e.g. for get/update/delete tests).
+
 ## Open Items
 
 - Detailed data models and database schema
