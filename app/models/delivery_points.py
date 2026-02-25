@@ -21,8 +21,8 @@ class DeliveryPoint(Base):
     state = Column(String(128), index=True)
     zip = Column(String(32), index=True)
     country = Column(String(2), index=True)  # ISO 3166-1 alpha-2
-    latitude = Column(Float, nullable=False)
-    longitude = Column(Float, nullable=False)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
