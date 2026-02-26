@@ -32,3 +32,9 @@ class ClientUpdate(BaseModel):
     name: str | None = None
     email: str | None = None
     phone: str | None = None
+
+
+class ClientDeliveryPointsLink(BaseModel):
+    """Payload for linking delivery points to a client"""
+
+    delivery_point_ids: list[int]

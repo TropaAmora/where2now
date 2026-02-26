@@ -2,6 +2,8 @@
 
 REST API for solving constrained delivery routing problems using MIP/LP optimization and the Google Maps API — built for real-world logistics with support for capacity, time windows, and location restrictions.
 
+**What goes in this README:** High-level description of the project, how to run and test it, and a concise list of what the API offers (not every field—use `/docs` for that). Keep "Open Items" and "API Roadmap / Ideas" for things we might do next; move items out when they are done and document them in the right section (e.g. **API (configuration endpoints)**).
+
 ## Tech Stack
 
 - **FastAPI** — REST API layer
@@ -190,8 +192,24 @@ git branch -d feature/my-new-thing
 
 Summary: **pull** → **branch off develop** → **work & commit** → **push** → **open PR** → **merge** → **pull develop again**.
 
+## API (configuration endpoints)
+
+These endpoints are for **registering and maintaining data** (clients, delivery points, and their many-to-many links). The main product usage will be routing/solve jobs (future); these routes support that by keeping the database populated.
+
+- **Clients** — `GET /clients`, `POST /clients`, `GET /clients/{id}`, `PATCH /clients/{id}`, `DELETE /clients/{id}`.
+- **Client → delivery points** — `GET /clients/{id}/delivery-points`, `POST /clients/{id}/delivery-points` (body: `{ "delivery_point_ids": [1, 2, …] }`), `DELETE /clients/{id}/delivery-points/{delivery_point_id}`.
+- **Delivery points** — `GET /delivery-points`, `POST /delivery-points`, `GET /delivery-points/{id}`, `PATCH /delivery-points/{id}`, `DELETE /delivery-points/{id}`.
+- **Delivery point → clients** — `GET /delivery-points/{id}/clients`, `POST /delivery-points/{id}/clients` (body: `{ "client_ids": [1, 2, …] }`), `DELETE /delivery-points/{id}/clients/{client_id}`.
+
+Full request/response shapes: run the app and open **/docs** (OpenAPI/Swagger).
+
 ## Open Items
 
 - Detailed data models and database schema
 - ML model for travel time prediction
 - Frontend (React, optional)
+
+## API Roadmap / Ideas
+
+- **Richer client representations** — Optional expanded view: `ClientReadWithDeliveryPoints` and e.g. `GET /clients/{id}?include=delivery_points` when we want client + delivery points in one call.
+- **Pagination and filtering** — Add pagination (e.g. `limit`/`offset`) to list endpoints once data volume grows.
