@@ -39,3 +39,8 @@ class DeliveryPointUpdate(BaseModel):
     country: str | None = None
     latitude: float | None = None
     longitude: float | None = None
+
+class DeliveryPointClientsLink(BaseModel):
+    """Payload for linking clients to a delivery point"""
+
+    client_ids: list[int]
