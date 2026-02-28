@@ -1,18 +1,24 @@
 """Delivery points routes."""
 
-# Dependencies
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-# Local stuff
 from app.dependencies import get_db_session
 from app.models.clients import Client
 from app.models.delivery_points import DeliveryPoint
 from app.schemas.clients import ClientRead
-from app.schemas.delivery_points import DeliveryPointClientsLink, DeliveryPointRead, DeliveryPointCreate, DeliveryPointUpdate
+from app.schemas.delivery_points import (
+    DeliveryPointClientsLink,
+    DeliveryPointCreate,
+    DeliveryPointRead,
+    DeliveryPointUpdate,
+)
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 @router.get("/", response_model=list[DeliveryPointRead])
 def list_delivery_points(db: Session = Depends(get_db_session)):
@@ -27,6 +33,7 @@ def create_delivery_point(payload: DeliveryPointCreate, db: Session = Depends(ge
     db.add(delivery_point)
     db.commit()
     db.refresh(delivery_point)
+    logger.info("Created delivery_point id=%s name=%s", delivery_point.id, delivery_point.name)
     return delivery_point
 
 @router.get("/{delivery_point_id}", response_model=DeliveryPointRead)
@@ -48,6 +55,7 @@ def update_delivery_point(delivery_point_id: int, payload: DeliveryPointUpdate, 
         setattr(delivery_point, key, value)
     db.commit()
     db.refresh(delivery_point)
+    logger.info("Updated delivery_point id=%s", delivery_point_id)
     return delivery_point
 
 @router.delete("/{delivery_point_id}", status_code=204)
@@ -58,6 +66,7 @@ def delete_delivery_point(delivery_point_id: int, db: Session = Depends(get_db_s
         raise HTTPException(status_code=404, detail="Delivery point not found.")
     db.delete(delivery_point)
     db.commit()
+    logger.info("Deleted delivery_point id=%s", delivery_point_id)
     return None
 
 
@@ -105,13 +114,15 @@ def link_delivery_point_clients(
         )
     
     # Add links (idempotent: skip if already linked)
+    added = 0
     for client in clients:
         if client not in delivery_point.clients:
             delivery_point.clients.append(client)
+            added += 1
 
     db.commit()
     db.refresh(delivery_point)
-
+    logger.info("Linked delivery_point id=%s to client ids=%s (added=%s)", delivery_point_id, payload.client_ids, added)
     return list(delivery_point.clients)
 
 @router.delete("/{delivery_point_id}/clients/{client_id}", status_code=204)
@@ -137,4 +148,5 @@ def unlink_delivery_point_client(
 
     delivery_point.clients.remove(client)
     db.commit()
+    logger.info("Unlinked delivery_point id=%s from client id=%s", delivery_point_id, client_id)
     return None

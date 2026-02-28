@@ -213,3 +213,4 @@ Full request/response shapes: run the app and open **/docs** (OpenAPI/Swagger).
 
 - **Richer client representations** — Optional expanded view: `ClientReadWithDeliveryPoints` and e.g. `GET /clients/{id}?include=delivery_points` when we want client + delivery points in one call.
 - **Pagination and filtering** — Add pagination (e.g. `limit`/`offset`) to list endpoints once data volume grows.
+- **Create a git flow to update develop when main has pushes**
