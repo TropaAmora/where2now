@@ -27,6 +27,10 @@ REST API for solving constrained delivery routing problems using MIP/LP optimiza
 
 5. **Travel Time Subsystem** — Provides a single interface: "give me the travel time from A to B." Internally manages Google Maps API calls, caching/storing historical data, and (future) an ML prediction model. The solver does not need to know how travel times are computed.
 
+6. **Logging & Observability** — Central logging configuration (console, optional rotating file, optional DB-backed logs) with request IDs for correlation across API, workers, and services.
+
+7. **Geocoding Subsystem** — Isolated geocoding component that takes delivery-point address fields and returns normalized coordinates via a pluggable provider interface (currently Nominatim-style). Delivery points store `geocode_status` and `geocode_provider` alongside `latitude`/`longitude`.
+
 ### Request Flow
 
 ```
@@ -125,7 +129,7 @@ Migrations use the app’s `Base` and `DATABASE_URL`; tables are created by `ale
 - **Run one file**: `pytest tests/test_api/test_clients.py`
 - **Run one test**: `pytest tests/test_api/test_clients.py::test_create_client`
 
-Tests use an **in-memory SQLite** DB (no real DB touched). `conftest.py` creates tables per test and overrides `get_db_session` so the API uses that DB. Use the `client` fixture for HTTP calls and the `db_session` fixture when you need to insert data directly (e.g. for get/update/delete tests).
+Tests use an **in-memory SQLite** DB (no real DB touched). `conftest.py` creates tables per test and overrides `get_db_session` so the API uses that DB. Use the `client` fixture for HTTP calls and the `db_session` fixture when you need to insert data directly (e.g. for get/update/delete tests). External integrations such as geocoding and DB logging are disabled or mocked in tests so the suite is fast and deterministic.
 
 ## CI/CD
 

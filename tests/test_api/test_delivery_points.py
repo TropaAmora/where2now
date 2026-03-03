@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.models.clients import Client
 from app.models.delivery_points import DeliveryPoint
+from app.geocoding.schemas import GeocodeResult
 
 
 def test_list_delivery_points_empty(client: TestClient):
@@ -30,14 +31,56 @@ def test_create_delivery_point(client: TestClient):
     assert data["state"] == payload["state"]
     assert data["zip"] == payload["zip"]
     assert data["country"] == payload["country"]
-    # Coordinates are nullable in this development phase.
+    # Coordinates and geocoding metadata are present but may be null when geocoding is disabled.
     assert "latitude" in data
     assert "longitude" in data
-    assert data["latitude"] is None
-    assert data["longitude"] is None
+    assert "geocode_status" in data
+    assert "geocode_provider" in data
     assert "id" in data
     assert "created_at" in data
     assert "updated_at" in data
+
+
+def test_create_delivery_point_geocoded_when_enabled_and_provider_mocked(client: TestClient, monkeypatch):
+    """When geocoding is enabled and provider returns a result, coords and status are set."""
+    from app.config import settings
+    from app.api.routes import delivery_points as dp_routes
+
+    # Enable geocoding for this test only
+    old_enabled = settings.GEOCODER_ENABLED
+    settings.GEOCODER_ENABLED = True
+
+    fake_result = GeocodeResult(
+        latitude=10.0,
+        longitude=20.0,
+        formatted_address="Fake address",
+        provider="nominatim",
+    )
+
+    def fake_geocode_for_delivery_point(address, zip, city, country_code):
+        return fake_result, "nominatim"
+
+    try:
+        monkeypatch.setattr(
+            dp_routes, "geocode_for_delivery_point", fake_geocode_for_delivery_point
+        )
+
+        payload = {
+            "name": "Geo Warehouse",
+            "address": "Geo St",
+            "state": "CA",
+            "zip": "90210",
+            "country": "US",
+        }
+        response = client.post("/api/delivery-points/", json=payload)
+        assert response.status_code == 201
+        data = response.json()
+        assert data["latitude"] == 10.0
+        assert data["longitude"] == 20.0
+        assert data["geocode_status"] == "SUCCESS"
+        assert data["geocode_provider"] == "nominatim"
+    finally:
+        settings.GEOCODER_ENABLED = old_enabled
 
 
 def test_list_delivery_points_returns_created(client: TestClient):

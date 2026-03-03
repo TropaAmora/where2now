@@ -26,6 +26,8 @@ class DeliveryPointRead(BaseModel):
     country: str
     latitude: float | None
     longitude: float | None
+    geocode_status: str | None = None
+    geocode_provider: str | None = None
     created_at: datetime
     updated_at: datetime
 

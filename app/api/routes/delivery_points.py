@@ -16,6 +16,8 @@ from app.schemas.delivery_points import (
     DeliveryPointRead,
     DeliveryPointUpdate,
 )
+from app.geocoding.service import geocode_for_delivery_point
+from app.geocoding.providers import GeocodingError
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -29,7 +31,30 @@ def list_delivery_points(db: Session = Depends(get_db_session)):
 @router.post("/", response_model=DeliveryPointRead, status_code=201)
 def create_delivery_point(payload: DeliveryPointCreate, db: Session = Depends(get_db_session)):
     """Create a delivery point."""
+    # Build ORM instance from payload
     delivery_point = DeliveryPoint(**payload.model_dump())
+
+    # Try geocoding before we commit anything
+    try:
+        result, provider_name = geocode_for_delivery_point(
+            address=payload.address,
+            zip=payload.zip,
+            city=None,
+            country_code=payload.country,
+        )
+    except GeocodingError as e:
+        # Infra problem talking to provider; surface as 503 for now
+        raise HTTPException(status_code=503, detail=f"Geocoding service unavailable: {e}") from e
+
+    if provider_name is not None:
+        delivery_point.geocode_provider = provider_name
+        if result is not None:
+            delivery_point.latitude = result.latitude
+            delivery_point.longitude = result.longitude
+            delivery_point.geocode_status = "SUCCESS"
+        else:
+            delivery_point.geocode_status = "FAILED"
+
     db.add(delivery_point)
     db.commit()
     db.refresh(delivery_point)
@@ -50,9 +75,34 @@ def update_delivery_point(delivery_point_id: int, payload: DeliveryPointUpdate, 
     delivery_point = db.get(DeliveryPoint, delivery_point_id)
     if delivery_point is None:
         raise HTTPException(status_code=404, detail="Delivery point not found.")
+
     data = payload.model_dump(exclude_unset=True)
     for key, value in data.items():
         setattr(delivery_point, key, value)
+
+    # Decide if we need to re-geocode (only if address-related fields changed)
+    needs_geocode = any(field in data for field in ("address", "zip", "country"))
+    if needs_geocode:
+        try:
+            result, provider_name = geocode_for_delivery_point(
+                address=delivery_point.address,
+                zip=delivery_point.zip,
+                city=delivery_point.city,
+                country_code=delivery_point.country,
+            )
+        except GeocodingError as exc:
+            raise HTTPException(status_code=503, detail=f"Geocoding service unavailable: {exc}") from exc
+
+        if provider_name is not None:
+            delivery_point.latitude = result.latitude,
+            delivery_point.longitude = result.longitude,
+            delivery_point.geocode_status = "SUCCESS"
+        else:
+            # We can either clear coords or leave them; for now we clear.
+            delivery_point.latitude = None
+            delivery_point.longitude = None
+            delivery_point.geocode_status = "FAILED"
+    
     db.commit()
     db.refresh(delivery_point)
     logger.info("Updated delivery_point id=%s", delivery_point_id)

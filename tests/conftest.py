@@ -16,6 +16,7 @@ from app.db.base import Base
 from app.dependencies import get_db_session
 from app.models import Client, DeliveryPoint  # noqa: F401 - register models with Base
 from main import app
+from app.config import settings
 
 # In-memory SQLite for tests; StaticPool so one connection = one DB (tables visible to session).
 TEST_DATABASE_URL = "sqlite:///:memory:"
@@ -50,3 +51,17 @@ def client(db_session):
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def disable_geocoding_for_tests():
+    """Disable external geocoding by default in tests.
+
+    Individual tests can temporarily re-enable it when they mock the provider.
+    """
+    old = settings.GEOCODER_ENABLED
+    settings.GEOCODER_ENABLED = False
+    try:
+        yield
+    finally:
+        settings.GEOCODER_ENABLED = old

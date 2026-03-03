@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     # External APIs (future use, e.g. Google Maps/geocoding)
     GOOGLE_MAPS_API_KEY: Optional[str] = None
 
+    # Geocoding
+    GEOCODER_ENABLED: bool = True
+    GEOCODER_PROVIDER: str = "nominatim" # use "nominatim", "geoapify" or "google"
+    GEOCODER_TIMEOUT: float = 5.0
+    GEOCODER_API_KEY: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
