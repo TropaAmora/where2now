@@ -27,6 +27,10 @@ REST API for solving constrained delivery routing problems using MIP/LP optimiza
 
 5. **Travel Time Subsystem** — Provides a single interface: "give me the travel time from A to B." Internally manages Google Maps API calls, caching/storing historical data, and (future) an ML prediction model. The solver does not need to know how travel times are computed.
 
+6. **Logging & Observability** — Central logging configuration (console, optional rotating file, optional DB-backed logs) with request IDs for correlation across API, workers, and services.
+
+7. **Geocoding Subsystem** — Isolated geocoding component that takes delivery-point address fields and returns normalized coordinates via a pluggable provider interface (currently Nominatim-style). Delivery points store `geocode_status` and `geocode_provider` alongside `latitude`/`longitude`.
+
 ### Request Flow
 
 ```
@@ -125,7 +129,7 @@ Migrations use the app’s `Base` and `DATABASE_URL`; tables are created by `ale
 - **Run one file**: `pytest tests/test_api/test_clients.py`
 - **Run one test**: `pytest tests/test_api/test_clients.py::test_create_client`
 
-Tests use an **in-memory SQLite** DB (no real DB touched). `conftest.py` creates tables per test and overrides `get_db_session` so the API uses that DB. Use the `client` fixture for HTTP calls and the `db_session` fixture when you need to insert data directly (e.g. for get/update/delete tests).
+Tests use an **in-memory SQLite** DB (no real DB touched). `conftest.py` creates tables per test and overrides `get_db_session` so the API uses that DB. Use the `client` fixture for HTTP calls and the `db_session` fixture when you need to insert data directly (e.g. for get/update/delete tests). External integrations such as geocoding and DB logging are disabled or mocked in tests so the suite is fast and deterministic.
 
 ## CI/CD
 
@@ -203,6 +207,10 @@ These endpoints are for **registering and maintaining data** (clients, delivery 
 
 Full request/response shapes: run the app and open **/docs** (OpenAPI/Swagger).
 
+## Roadmap
+
+Planned epics, stories, and implementation details (Travel Time Engine, Jobs, Restrictions, Docker, Observability) are documented in **[docs/roadmap.md](docs/roadmap.md)**. That file includes data-source strategy, rollout phases, and a concrete definition of the travel-time request/result contracts (Story A1) for when development starts.
+
 ## Open Items
 
 - Detailed data models and database schema
@@ -213,3 +221,4 @@ Full request/response shapes: run the app and open **/docs** (OpenAPI/Swagger).
 
 - **Richer client representations** — Optional expanded view: `ClientReadWithDeliveryPoints` and e.g. `GET /clients/{id}?include=delivery_points` when we want client + delivery points in one call.
 - **Pagination and filtering** — Add pagination (e.g. `limit`/`offset`) to list endpoints once data volume grows.
+- **Create a git flow to update develop when main has pushes**

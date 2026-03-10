@@ -1,5 +1,7 @@
 """Clients routes."""
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -11,6 +13,7 @@ from app.schemas.clients import ClientCreate, ClientDeliveryPointsLink, ClientRe
 from app.schemas.delivery_points import DeliveryPointRead
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/", response_model=list[ClientRead])
@@ -27,6 +30,7 @@ def create_client(payload: ClientCreate, db: Session = Depends(get_db_session)):
     db.add(client)
     db.commit()
     db.refresh(client)
+    logger.info("Created client id=%s name=%s", client.id, client.name)
     return client
 
 
@@ -50,6 +54,7 @@ def update_client(client_id: int, payload: ClientUpdate, db: Session = Depends(g
         setattr(client, key, value)
     db.commit()
     db.refresh(client)
+    logger.info("Updated client id=%s", client_id)
     return client
 
 
@@ -61,6 +66,7 @@ def delete_client(client_id: int, db: Session = Depends(get_db_session)):
         raise HTTPException(status_code=404, detail="Client not found.")
     db.delete(client)
     db.commit()
+    logger.info("Deleted client id=%s", client_id)
     return None
 
 @router.get("/{client_id}/delivery-points", response_model=list[DeliveryPointRead])
@@ -105,13 +111,15 @@ def link_client_delivery_points(
         )
 
     # Add links (idempotent: skip if already linked)
+    added = 0
     for dp in delivery_points:
         if dp not in client.delivery_points:
             client.delivery_points.append(dp)
+            added += 1
 
     db.commit()
     db.refresh(client)
-
+    logger.info("Linked client id=%s to delivery_point ids=%s (added=%s)", client_id, payload.delivery_point_ids, added)
     return list(client.delivery_points)
 
 @router.delete("/{client_id}/delivery-points/{delivery_point_id}", status_code=204)
@@ -134,4 +142,5 @@ def unlink_client_delivery_point(client_id: int, delivery_point_id: int, db: Ses
     # Unlink the delivery point from the client
     client.delivery_points.remove(delivery_point)
     db.commit()
+    logger.info("Unlinked client id=%s from delivery_point id=%s", client_id, delivery_point_id)
     return None
