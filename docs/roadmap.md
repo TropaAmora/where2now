@@ -163,6 +163,93 @@ Represents the result of a travel-time request. One result per request; matrix r
 
 ---
 
+## Story A2 — Concrete definition (Provider & Engine Interfaces)
+
+Defined here so implementation can start without re-deciding the architecture. Adjust as we learn.
+
+### TravelTimeProvider (ABC)
+
+Every provider implements this abstract base class. The engine calls providers through this interface — the rest of the app never touches a provider directly.
+
+| Member | Kind | Signature | Description |
+|--------|------|-----------|-------------|
+| `name` | abstract property | `-> str` | Unique identifier (e.g. `"google"`, `"historical"`, `"ml"`). Used in logs, results, and config. |
+| `get_travel_times` | abstract method | `(request: TravelTimeRequest) -> TravelTimeResult` | Compute travel times. Receives a request where **all locations are already resolved to `LatLng`** (no `DeliveryPointRef`). Must return a `TravelTimeResult` with `provider` set to `self.name`. |
+
+**Provider rules:**
+
+- Providers receive only `LatLng` coordinates — the engine resolves `DeliveryPointRef` before calling any provider.
+- A provider that cannot handle part of the request (e.g. unsupported transport mode) should return legs with `error` set, not raise an exception.
+- Unrecoverable failures (network down, invalid API key) raise a `TravelTimeProviderError` so the engine can catch and fall back or report.
+- Providers must set `TravelTimeResult.provider` to their own `name`.
+
+### TravelTimeProviderError
+
+A custom exception that providers raise for unrecoverable failures.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `provider_name` | str | Which provider failed. |
+| `message` | str | Human-readable description. |
+| `original_error` | Exception or None | The wrapped underlying exception, if any. |
+
+### TravelTimeEngine
+
+The single entry point for the rest of the app. Orchestrates provider selection, location resolution, error handling, and logging.
+
+| Member | Kind | Signature | Description |
+|--------|------|-----------|-------------|
+| `__init__` | method | `(providers: list[TravelTimeProvider], strategy: EngineStrategy, resolver: LocationResolver)` | Accepts an ordered list of providers, a strategy, and a resolver for `DeliveryPointRef` lookups. |
+| `get_travel_times` | method | `(request: TravelTimeRequest) -> TravelTimeResult` | Public entry point. Resolves locations, selects provider(s) per strategy, calls them, and returns a unified result. |
+
+**Engine responsibilities:**
+
+1. **Location resolution** — Walk `request.origins` and `request.destinations`; replace every `DeliveryPointRef` with its resolved `LatLng` via the `LocationResolver`. If resolution fails for any ref, return early with an error result (no provider is called).
+2. **Provider selection** — Use the configured `EngineStrategy` to decide which provider(s) to call and in what order.
+3. **Execution** — Call the selected provider's `get_travel_times`. Catch `TravelTimeProviderError` and either fall back to the next provider (if strategy allows) or return an error result.
+4. **Logging** — Log: which provider was selected, whether it succeeded or failed, and the duration of the call. Use the request's `metadata.request_id` as correlation id when available.
+
+### EngineStrategy (enum)
+
+Controls how the engine selects and calls providers. Start small, extend later.
+
+| Value | Behavior |
+|-------|----------|
+| `single` | Call the first provider in the list. No fallback. This is the v1 default (single Google provider). |
+| `fallback_chain` | Try providers in order; if one raises `TravelTimeProviderError`, try the next. Return the first successful result. (Planned for when we add a second provider.) |
+
+### LocationResolver (ABC)
+
+Responsible for turning `DeliveryPointRef` into `LatLng`. Defined as an ABC so the engine doesn't depend on the database directly — easier to test and to swap implementations.
+
+| Member | Kind | Signature | Description |
+|--------|------|-----------|-------------|
+| `resolve` | abstract method | `(refs: list[DeliveryPointRef]) -> dict[int, LatLng]` | Takes a list of delivery-point refs, returns a mapping of `delivery_point_id → LatLng`. Raises `LocationResolutionError` for any ID that can't be found or has no coordinates. |
+
+**Implementations (planned):**
+
+- `DbLocationResolver` — Queries the `delivery_points` table. This is the real implementation used at runtime.
+- A simple dict-based stub for unit tests.
+
+### LocationResolutionError
+
+Raised by a `LocationResolver` when one or more delivery points can't be resolved.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `missing_ids` | list[int] | Delivery-point IDs that were not found or have no coordinates. |
+| `message` | str | Human-readable description. |
+
+### Design notes for A2
+
+- **Sync for v1.** The provider interface and engine are synchronous. Async execution is scoped to Epic B (Celery). If we later need concurrent provider calls, we can introduce an async variant or run sync providers in a thread pool.
+- **Engine does not depend on DB directly.** The `LocationResolver` abstraction keeps the engine testable — unit tests inject a stub resolver, production injects `DbLocationResolver`.
+- **One result, one provider.** In v1, a single `TravelTimeResult` comes from a single provider. Multi-provider aggregation (e.g. averaging ML + Google) is a future concern — the contracts support it, but the engine doesn't implement it yet.
+- **Strategy is deliberately simple.** `single` covers v1 (Google only). `fallback_chain` is the first multi-provider mode. More sophisticated strategies (weighted, confidence-based routing) can be added as new enum values without changing the engine's public interface.
+- **Providers are stateless per call.** Any caching, connection pooling, or rate limiting lives inside the provider implementation, not in the engine.
+
+---
+
 ## Ordering & dependencies
 
 - **Epic A** is the backbone: A1 → A2 → A3 → A4 → A5. Engine and contracts should be in place before we rely on them in jobs and restrictions.
