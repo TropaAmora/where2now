@@ -207,6 +207,10 @@ These endpoints are for **registering and maintaining data** (clients, delivery 
 
 Full request/response shapes: run the app and open **/docs** (OpenAPI/Swagger).
 
+## Roadmap
+
+Planned epics, stories, and implementation details (Travel Time Engine, Jobs, Restrictions, Docker, Observability) are documented in **[docs/roadmap.md](docs/roadmap.md)**. That file includes data-source strategy, rollout phases, and a concrete definition of the travel-time request/result contracts (Story A1) for when development starts.
+
 ## Open Items
 
 - Detailed data models and database schema
