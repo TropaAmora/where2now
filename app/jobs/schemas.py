@@ -19,6 +19,7 @@ class JobRead(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
+    tenant_id: str
     type: str
     status: JobStatus
     input_payload: dict | None

@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 import httpx
 
-from app.api.routes import health, clients, delivery_points, travel_times
+from app.api.routes import health, clients, delivery_points, jobs, travel_times
 from app.config import settings
 from app.logging_config import configure_logging
 from app.middleware_logging import RequestLoggingMiddleware
@@ -43,4 +43,9 @@ app.include_router(
     travel_times.router,
     prefix="/api/travel-times",
     tags=["travel_times"],
+)
+app.include_router(
+    jobs.router,
+    prefix="/api/jobs",
+    tags=["jobs"],
 )

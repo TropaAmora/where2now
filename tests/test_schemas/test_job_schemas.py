@@ -54,9 +54,7 @@ def _make_orm_job(**kwargs) -> Job:
         finished_at=None,
     )
     defaults.update(kwargs)
-    job = Job.__new__(Job)
-    job.__dict__.update(defaults)
-    return job
+    return Job(**defaults)
 
 
 def test_job_read_maps_fields_from_orm_instance():
@@ -73,11 +71,11 @@ def test_job_read_maps_fields_from_orm_instance():
     assert read.finished_at is None
 
 
-def test_job_read_does_not_expose_tenant_id():
+def test_job_read_exposes_tenant_id():
     orm_job = _make_orm_job(tenant_id="acme")
     read = JobRead.model_validate(orm_job)
 
-    assert not hasattr(read, "tenant_id")
+    assert read.tenant_id == "acme"
 
 
 def test_job_read_status_is_job_status_enum():
