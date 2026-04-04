@@ -15,6 +15,7 @@ class DeliveryPoint(Base):
     __tablename__ = "delivery_points"
 
     id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(String(64), nullable=False, index=True, default="default")
     name = Column(String(255), nullable=False, index=True)
     address = Column(String(512), index=True)
     city = Column(String(128), index=True)

@@ -20,6 +20,7 @@ class Client(Base):
     __tablename__ = "clients"
 
     id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(String(64), nullable=False, index=True, default="default")
     name = Column(String(255), nullable=False, index=True)
     email = Column(String(255), index=True)
     phone = Column(String(64), index=True)
