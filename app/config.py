@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     GEOCODER_TIMEOUT: float = 5.0
     GEOCODER_API_KEY: str | None = None
 
+    # Travel time subsystem
+    TRAVEL_TIME_PROVIDERS: str = "google"
+    TRAVEL_TIME_STRATEGY: str = "single"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

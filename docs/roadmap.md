@@ -11,7 +11,7 @@ The roadmap stays **short and scannable** (epics, order, dependencies). Deeper m
 | [`docs/architecture/`](architecture/) | Stable mental model: layers, patterns (strategy, provider, ports), code map, testing approach. Start here if terms like ABC or “provider” are new. |
 | [`docs/stories/`](stories/) | **Per-story implementation guides**: exact module paths, class/method tables, checklists, and links to tests. Add a new file when you start a story (B1, C1, …). |
 
-**Travel time (Epic A) today:** [architecture/travel-time-subsystem.md](architecture/travel-time-subsystem.md) · [stories/a1-travel-time-contracts.md](stories/a1-travel-time-contracts.md) · [stories/a2-provider-engine-resolver.md](stories/a2-provider-engine-resolver.md) · [stories/a3-google-maps-provider.md](stories/a3-google-maps-provider.md) · [stories/a4-integrate-engine-into-api-flows.md](stories/a4-integrate-engine-into-api-flows.md)
+**Travel time (Epic A) today:** [architecture/travel-time-subsystem.md](architecture/travel-time-subsystem.md) · [stories/a1-travel-time-contracts.md](stories/a1-travel-time-contracts.md) · [stories/a2-provider-engine-resolver.md](stories/a2-provider-engine-resolver.md) · [stories/a3-google-maps-provider.md](stories/a3-google-maps-provider.md) · [stories/a4-integrate-engine-into-api-flows.md](stories/a4-integrate-engine-into-api-flows.md) · [stories/a5-provider-configuration.md](stories/a5-provider-configuration.md)
 
 ---
 
@@ -164,6 +164,22 @@ Spec and checklist: **[stories/a3-google-maps-provider.md](stories/a3-google-map
 
 ---
 
+## Story A4 — Integrate engine into API flows (summary)
+
+**Implemented:** `POST /api/travel-times` route in `app/api/routes/travel_times.py`; `get_travel_time_engine` dependency in `app/dependencies.py` (currently hard-coded to Google + `EngineStrategy.SINGLE`). Route is a plain `def` (offloaded to thread pool by FastAPI). Provider selection moves to config in **A5**.
+
+Full spec and checklist: **[stories/a4-integrate-engine-into-api-flows.md](stories/a4-integrate-engine-into-api-flows.md)**.
+
+---
+
+## Story A5 — Provider configuration & feature flags (next)
+
+**Goal:** Operators control which providers are active, their order, and the engine strategy via `TRAVEL_TIME_PROVIDERS` and `TRAVEL_TIME_STRATEGY` env vars. A new provider (ML, historical) will register in one place in `provider_factory.py` — no handler changes.
+
+Full spec: **[stories/a5-provider-configuration.md](stories/a5-provider-configuration.md)**.
+
+---
+
 ## Ordering & dependencies
 
 - **Epic A** is the backbone: A1 → A2 → A3 → A4 → A5. Engine and contracts should be in place before we rely on them in jobs and restrictions.
@@ -174,4 +190,4 @@ Spec and checklist: **[stories/a3-google-maps-provider.md](stories/a3-google-map
 
 ---
 
-*Last updated: 2026-04-01 — added A4 story guide; A3 implementation note; travel-time data/clustering/ML design backlog; A1–A4 specs under `docs/stories/` and `docs/architecture/`.*
+*Last updated: 2026-04-04 — added A5 story guide (provider configuration & feature flags); A4 noted as implemented.*
