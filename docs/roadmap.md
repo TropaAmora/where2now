@@ -13,6 +13,8 @@ The roadmap stays **short and scannable** (epics, order, dependencies). Deeper m
 
 **Travel time (Epic A) today:** [architecture/travel-time-subsystem.md](architecture/travel-time-subsystem.md) · [stories/a1-travel-time-contracts.md](stories/a1-travel-time-contracts.md) · [stories/a2-provider-engine-resolver.md](stories/a2-provider-engine-resolver.md) · [stories/a3-google-maps-provider.md](stories/a3-google-maps-provider.md) · [stories/a4-integrate-engine-into-api-flows.md](stories/a4-integrate-engine-into-api-flows.md) · [stories/a5-provider-configuration.md](stories/a5-provider-configuration.md)
 
+**Job system (Epic B) — in progress:** [stories/b1-job-domain-model.md](stories/b1-job-domain-model.md) · [stories/b2-job-lifecycle-management.md](stories/b2-job-lifecycle-management.md)
+
 ---
 
 ## Vision
@@ -180,6 +182,22 @@ Full spec: **[stories/a5-provider-configuration.md](stories/a5-provider-configur
 
 ---
 
+## Cross-cutting conventions
+
+### Multi-tenancy — `tenant_id` pattern
+
+The system is currently single-tenant (one delivery company, one deployment). To avoid a costly schema migration when a second client arrives, every business table carries a `tenant_id` column from the start.
+
+**Rules:**
+- Type: `String(64)`, `nullable=False`, indexed, `server_default='default'`.
+- Default value `"default"` is used for all rows during the single-tenant pilot.
+- Full row-level isolation (reading `tenant_id` from the auth context and filtering queries) is **not implemented yet** — that belongs to a future auth/tenancy layer (design backlog).
+- **Every new business table must include `tenant_id`.** System/operational tables (`log_entries`) are exempt.
+
+Tables with `tenant_id` today: `clients`, `delivery_points`, `jobs` (B1, not yet created).
+
+---
+
 ## Ordering & dependencies
 
 - **Epic A** is the backbone: A1 → A2 → A3 → A4 → A5. Engine and contracts should be in place before we rely on them in jobs and restrictions.
@@ -190,4 +208,4 @@ Full spec: **[stories/a5-provider-configuration.md](stories/a5-provider-configur
 
 ---
 
-*Last updated: 2026-04-04 — added A5 story guide (provider configuration & feature flags); A4 noted as implemented.*
+*Last updated: 2026-04-04 — added A5 story guide; A4 noted as implemented; added B1 and B2 story guides (job model and lifecycle service); Epic B in progress. Added tenant_id cross-cutting convention; applied to clients, delivery_points, and jobs tables.*
