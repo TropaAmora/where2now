@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     TRAVEL_TIME_PROVIDERS: str = "google"
     TRAVEL_TIME_STRATEGY: str = "single"
 
+    # Celery / task queue
+    CELERY_BROKER_URL: str = "redis://localhost:6379/0"
+    CELERY_RESULT_BACKEND: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
