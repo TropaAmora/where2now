@@ -13,7 +13,7 @@ The roadmap stays **short and scannable** (epics, order, dependencies). Deeper m
 
 **Travel time (Epic A) today:** [architecture/travel-time-subsystem.md](architecture/travel-time-subsystem.md) · [stories/a1-travel-time-contracts.md](stories/a1-travel-time-contracts.md) · [stories/a2-provider-engine-resolver.md](stories/a2-provider-engine-resolver.md) · [stories/a3-google-maps-provider.md](stories/a3-google-maps-provider.md) · [stories/a4-integrate-engine-into-api-flows.md](stories/a4-integrate-engine-into-api-flows.md) · [stories/a5-provider-configuration.md](stories/a5-provider-configuration.md)
 
-**Job system (Epic B) — in progress:** [stories/b1-job-domain-model.md](stories/b1-job-domain-model.md) · [stories/b2-job-lifecycle-management.md](stories/b2-job-lifecycle-management.md) · [stories/b3-celery-base-configuration.md](stories/b3-celery-base-configuration.md) · [stories/b4-travel-time-job-task.md](stories/b4-travel-time-job-task.md)
+**Job system (Epic B) — in progress:** [stories/b1-job-domain-model.md](stories/b1-job-domain-model.md) · [stories/b2-job-lifecycle-management.md](stories/b2-job-lifecycle-management.md) · [stories/b3-celery-base-configuration.md](stories/b3-celery-base-configuration.md) · [stories/b4-travel-time-job-task.md](stories/b4-travel-time-job-task.md) · [stories/b5-job-api-endpoints.md](stories/b5-job-api-endpoints.md)
 
 ---
 
@@ -208,4 +208,4 @@ Tables with `tenant_id` today: `clients`, `delivery_points`, `jobs` (B1, not yet
 
 ---
 
-*Last updated: 2026-04-04 — added A5 story guide; A4 noted as implemented; added B1–B4 story guides; B2 and B3 implemented. B4 story guide added (travel-time Celery task). Added tenant_id cross-cutting convention; applied to clients, delivery_points, and jobs tables.*
+*Last updated: 2026-04-04 — added A5 story guide; A4 noted as implemented; added B1–B5 story guides; B2 and B3 implemented. B4 and B5 story guides added. Epic B complete. Added tenant_id cross-cutting convention; applied to clients, delivery_points, and jobs tables.*
