@@ -15,5 +15,6 @@ Each file here is a **developer-focused** supplement to [`docs/roadmap.md`](../r
 | A1 — Contracts | [a1-travel-time-contracts.md](a1-travel-time-contracts.md) |
 | A2 — Provider, engine, resolver | [a2-provider-engine-resolver.md](a2-provider-engine-resolver.md) |
 | A3 — Google Maps provider | [a3-google-maps-provider.md](a3-google-maps-provider.md) |
+| A4 — Integrate engine into API flows | [a4-integrate-engine-into-api-flows.md](a4-integrate-engine-into-api-flows.md) |
 
 Add new story files here as you start each story (B1, C1, …) so the roadmap does not grow into a single unmaintainable file.

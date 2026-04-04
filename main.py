@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI
 
-from app.api.routes import health, clients, delivery_points
+from app.api.routes import health, clients, delivery_points, travel_times
 from app.config import settings
 from app.logging_config import configure_logging
 from app.middleware_logging import RequestLoggingMiddleware
@@ -27,4 +27,9 @@ app.include_router(
     delivery_points.router,
     prefix="/api/delivery-points",
     tags=["delivery_points"],
+)
+app.include_router(
+    travel_times.router,
+    prefix="/api/travel-times",
+    tags=["travel_times"],
 )
