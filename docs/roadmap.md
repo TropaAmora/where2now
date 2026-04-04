@@ -2,6 +2,17 @@
 
 This document tracks planned epics, stories, and design decisions for where2now. It is the single source of truth for *what* we are building and *how* we intend to get there. The README stays high-level; detailed roadmap and implementation notes live here.
 
+### Documentation layout (read this first)
+
+The roadmap stays **short and scannable** (epics, order, dependencies). Deeper material lives in two folders so we do not maintain one giant file:
+
+| Location | Purpose |
+|----------|---------|
+| [`docs/architecture/`](architecture/) | Stable mental model: layers, patterns (strategy, provider, ports), code map, testing approach. Start here if terms like ABC or “provider” are new. |
+| [`docs/stories/`](stories/) | **Per-story implementation guides**: exact module paths, class/method tables, checklists, and links to tests. Add a new file when you start a story (B1, C1, …). |
+
+**Travel time (Epic A) today:** [architecture/travel-time-subsystem.md](architecture/travel-time-subsystem.md) · [stories/a1-travel-time-contracts.md](stories/a1-travel-time-contracts.md) · [stories/a2-provider-engine-resolver.md](stories/a2-provider-engine-resolver.md) · [stories/a3-google-maps-provider.md](stories/a3-google-maps-provider.md) · [stories/a4-integrate-engine-into-api-flows.md](stories/a4-integrate-engine-into-api-flows.md) · [stories/a5-provider-configuration.md](stories/a5-provider-configuration.md)
+
 ---
 
 ## Vision
@@ -25,16 +36,22 @@ The engine will eventually support multiple data sources. Design and implementat
 ### Rollout phases
 
 - **Phase 1 — Google-only provider, with logging**  
-  Single provider (Google). Every request goes through the engine; we log inputs and outputs. Delivers the core product and sets up observability.
-
+Single provider (Google). Every request goes through the engine; we log inputs and outputs. Delivers the core product and sets up observability.
 - **Phase 2 — Caching + data collection**  
-  Cache Google responses; persist historical OD pairs and results (e.g. for Epic E3). Reduces repeated API calls and starts building the dataset for ML.
-
+Cache Google responses; persist historical OD pairs and results (e.g. for Epic E3). Reduces repeated API calls and starts building the dataset for ML.
 - **Phase 3 — Historical / public data providers**  
-  Provider(s) that answer from own historical data or public datasets when available. Used as hints or secondary sources; Google remains the authority where needed.
-
+Provider(s) that answer from own historical data or public datasets when available. Used as hints or secondary sources; Google remains the authority where needed.
 - **Phase 4 — ML provider**  
-  Train a model on collected data; add an `MLTravelTimeProvider`. Use ML when confidence is high and routes are typical; fall back to Google (or hybrid) otherwise.
+Train a model on collected data; add an `MLTravelTimeProvider`. Use ML when confidence is high and routes are typical; fall back to Google (or hybrid) otherwise.
+
+### Travel-time data, clustering, and learning — design backlog (pick up later)
+
+Discussion captured for when we deepen **Epic E** (especially **E3**) and Phases 2–4. Nothing here blocks A4/A5; treat as guidance so the first persistence choices stay valid for years.
+
+- **Append-only observations.** Store each measurement as an immutable fact: stable origin/destination identity, departure context, transport mode, duration/distance, whether traffic-aware, provider, `queried_at`. Aggregates and models are derived; they can be rebuilt if definitions change.
+- **Time-bounded context.** Anything that changes over time (coordinates, cluster assignment, per-stop delivery rules) should be **versioned or effective-dated**, not silently overwritten. Training and analytics join observations to **context as-of** that observation to avoid leakage. Per-stop “only certain days” and similar rules stay a **planning/feasibility** concern (**Epic C**), not a substitute for travel-time rows.
+- **Dynamic clustering (budget and structure).** Recompute clusters as the network changes. Use clusters to **reduce Google Distance Matrix fan-out** (e.g. dense intra-cluster pairs + a small set of inter-cluster “bridge” legs) while still aiming for a **stronger predictor later** (Phase 4). Clustering is an operational shortcut; the long-term model can use richer features than cluster ID alone.
+- **Suggested sequencing when we resume:** nail **E3** table/schema and write path → optional clustering or batching job for API cost → caching and dedupe (Phase 2) → historical provider (Phase 3) → ML provider (Phase 4).
 
 ---
 
@@ -48,13 +65,15 @@ Each story has a **goal**, **what** we deliver, and **how** we approach it at a 
 
 **Focus:** Core abstraction that can hide Google, future historical data, and ML behind a single interface.
 
-| ID   | Story | Goal | What | How (high level) |
-|------|--------|------|------|-------------------|
-| **A1** | Define travel time contracts | Single, clear shape for “ask” and “answer”. | `TravelTimeRequest` and `TravelTimeResult` (see [Story A1 — Concrete definition](#story-a1--concrete-definition-travel-time-contracts) below). | Shared Pydantic/domain classes; adapt any existing Google calls to these shapes; document in code and a short design note. |
-| **A2** | Design provider and engine interfaces | Plug in Google, historical, ML without touching the rest of the app. | `TravelTimeProvider` interface (e.g. `get_travel_times(request) -> TravelTimeResult`). `TravelTimeEngine` that selects providers, aggregates, fallbacks. | Abstract base class or protocol for providers; engine that takes a list of providers and a strategy (e.g. “Google only” for v1); normalize errors and log which provider was used. |
-| **A3** | Implement Google Maps provider | Robust, production-ready Google provider. | `GoogleTravelTimeProvider`; rate limits, timeouts, retries, API key from config. | Map `TravelTimeRequest` → Google API (distance matrix or directions); map response → `TravelTimeResult`; centralize config in env. |
-| **A4** | Integrate engine into current API flows | Existing endpoints use the engine instead of ad-hoc Google calls. | Main endpoint(s) that need travel times call `TravelTimeEngine`. | Build `TravelTimeRequest` in handlers; call engine; return `TravelTimeResult` (or derived) in responses; keep behavior identical or better. |
-| **A5** | Provider configuration & feature flags | Turn providers on/off and choose strategy without code changes. | Config (env/settings): enabled providers, ordering, optional weights. Simple modes: `google_only`, `google_then_ml`, etc. | At startup, build `TravelTimeEngine` from config; document how to change provider behavior per environment. |
+
+| ID     | Story                                   | Goal                                                                 | What                                                                                                                                                     | How (high level)                                                                                                                                                                   |
+| ------ | --------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A1** | Define travel time contracts            | Single, clear shape for “ask” and “answer”.                          | `TravelTimeRequest` and `TravelTimeResult` — see [stories/a1-travel-time-contracts.md](stories/a1-travel-time-contracts.md).                               | Shared Pydantic/domain classes; adapt any existing Google calls to these shapes; document in code and a short design note.                                                         |
+| **A2** | Design provider and engine interfaces   | Plug in Google, historical, ML without touching the rest of the app. | `TravelTimeProvider` interface (e.g. `get_travel_times(request) -> TravelTimeResult`). `TravelTimeEngine` that selects providers, aggregates, fallbacks. | Abstract base class or protocol for providers; engine that takes a list of providers and a strategy (e.g. “Google only” for v1); normalize errors and log which provider was used. |
+| **A3** | Implement Google Maps provider          | Robust, production-ready Google provider.                            | `GoogleTravelTimeProvider`; rate limits, timeouts, retries, API key from config.                                                                         | Map `TravelTimeRequest` → Google API (distance matrix or directions); map response → `TravelTimeResult`; centralize config in env.                                                 |
+| **A4** | Integrate engine into current API flows | Existing endpoints use the engine instead of ad-hoc Google calls.    | Main endpoint(s) that need travel times call `TravelTimeEngine`.                                                                                         | Build `TravelTimeRequest` in handlers; call engine; return `TravelTimeResult` (or derived) in responses; keep behavior identical or better.                                        |
+| **A5** | Provider configuration & feature flags  | Turn providers on/off and choose strategy without code changes.      | Config (env/settings): enabled providers, ordering, optional weights. Simple modes: `google_only`, `google_then_ml`, etc.                                | At startup, build `TravelTimeEngine` from config; document how to change provider behavior per environment.                                                                        |
+
 
 ---
 
@@ -62,13 +81,15 @@ Each story has a **goal**, **what** we deliver, and **how** we approach it at a 
 
 **Focus:** Background processing for travel-time requests and other heavy work.
 
-| ID   | Story | Goal | What | How (high level) |
-|------|--------|------|------|-------------------|
-| **B1** | Job domain model & schema | Represent any background job in a consistent way. | Fields: `id`, `type`, `status`, `input_payload`, `result_payload`, `error`, timestamps. Pydantic schema(s) + DB model. | ORM model + migration; schemas for REST. |
-| **B2** | Job lifecycle management | Clear, unambiguous state transitions. | Transitions: `PENDING → RUNNING → SUCCESS` / `FAILED` / `CANCELLED`. | Small service layer: create job, update status, attach result/error; enforce valid transitions. |
-| **B3** | Celery base configuration | Working task queue. | Celery app, broker, result backend, worker entrypoint. | Env-based Celery settings; one trivial test task to prove pipeline. |
-| **B4** | Travel time job task | Run travel-time computation as a background job. | Celery task: take job id or payload → call `TravelTimeEngine` → store result in `Job`. | Task → job service (B2); map exceptions to `FAILED` and error message. |
-| **B5** | Job API endpoints | Clients can trigger and observe background work. | Endpoints: create job (or existing endpoint returns `job_id`), `GET /jobs/{id}`, optionally `GET /jobs/{id}/result`. | Use job service + schemas; document in README/docs. |
+
+| ID     | Story                     | Goal                                              | What                                                                                                                   | How (high level)                                                                                |
+| ------ | ------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **B1** | Job domain model & schema | Represent any background job in a consistent way. | Fields: `id`, `type`, `status`, `input_payload`, `result_payload`, `error`, timestamps. Pydantic schema(s) + DB model. | ORM model + migration; schemas for REST.                                                        |
+| **B2** | Job lifecycle management  | Clear, unambiguous state transitions.             | Transitions: `PENDING → RUNNING → SUCCESS` / `FAILED` / `CANCELLED`.                                                   | Small service layer: create job, update status, attach result/error; enforce valid transitions. |
+| **B3** | Celery base configuration | Working task queue.                               | Celery app, broker, result backend, worker entrypoint.                                                                 | Env-based Celery settings; one trivial test task to prove pipeline.                             |
+| **B4** | Travel time job task      | Run travel-time computation as a background job.  | Celery task: take job id or payload → call `TravelTimeEngine` → store result in `Job`.                                 | Task → job service (B2); map exceptions to `FAILED` and error message.                          |
+| **B5** | Job API endpoints         | Clients can trigger and observe background work.  | Endpoints: create job (or existing endpoint returns `job_id`), `GET /jobs/{id}`, optionally `GET /jobs/{id}/result`.   | Use job service + schemas; document in README/docs.                                             |
+
 
 ---
 
@@ -76,12 +97,14 @@ Each story has a **goal**, **what** we deliver, and **how** we approach it at a 
 
 **Focus:** How users express how they want to travel and what to avoid.
 
-| ID   | Story | Goal | What | How (high level) |
-|------|--------|------|------|-------------------|
-| **C1** | Restrictions model & schema design | Flexible but bounded representation of constraints. | Fields: transport modes, time windows, max route duration, max walking per leg, avoid tolls/highways, etc. | Agree v1 set; Pydantic + DB if we persist restrictions; leave room to extend. |
-| **C2** | Parsing & validation layer | Incoming JSON → validated restriction objects with clear errors. | Request schemas; custom validators (e.g. time window logic). | Pydantic validators; structured error responses from API. |
-| **C3** | Integrate restrictions into engine and providers | Restrictions actually influence travel time calculation. | `TravelTimeRequest` carries restrictions; Google provider uses what it supports (e.g. mode, departure_time). | Thread restrictions through engine; per-provider support matrix. |
-| **C4** | API routes & documentation | Users know how to send restrictions. | Endpoints accept restriction objects; docs show examples. | Backward compatibility where needed; add “recipe” examples. |
+
+| ID     | Story                                            | Goal                                                             | What                                                                                                         | How (high level)                                                              |
+| ------ | ------------------------------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| **C1** | Restrictions model & schema design               | Flexible but bounded representation of constraints.              | Fields: transport modes, time windows, max route duration, max walking per leg, avoid tolls/highways, etc.   | Agree v1 set; Pydantic + DB if we persist restrictions; leave room to extend. |
+| **C2** | Parsing & validation layer                       | Incoming JSON → validated restriction objects with clear errors. | Request schemas; custom validators (e.g. time window logic).                                                 | Pydantic validators; structured error responses from API.                     |
+| **C3** | Integrate restrictions into engine and providers | Restrictions actually influence travel time calculation.         | `TravelTimeRequest` carries restrictions; Google provider uses what it supports (e.g. mode, departure_time). | Thread restrictions through engine; per-provider support matrix.              |
+| **C4** | API routes & documentation                       | Users know how to send restrictions.                             | Endpoints accept restriction objects; docs show examples.                                                    | Backward compatibility where needed; add “recipe” examples.                   |
+
 
 ---
 
@@ -89,12 +112,14 @@ Each story has a **goal**, **what** we deliver, and **how** we approach it at a 
 
 **Focus:** One-command run of the full stack; clear configuration story.
 
-| ID   | Story | Goal | What | How (high level) |
-|------|--------|------|------|-------------------|
-| **D1** | API Dockerfile | Build and run the API in a container. | Dockerfile: app install, env, startup command. | Mirror current dev setup; avoid premature optimization. |
-| **D2** | docker-compose for full stack | One command: API + DB + broker (and optionally worker). | `docker-compose`: app, db, redis/rabbit, optional worker. | Env and volumes; ensure migrations/seed work. |
-| **D3** | Env & configuration alignment | One coherent story for settings (local/dev/prod). | `.env.example` and settings docs updated. | Same env vars work bare-metal and in Docker. |
-| **D4** | Document “run locally” paths | New dev can start in minutes. | README: “Run with Docker” and “Run without Docker”. | Step-by-step commands; note dependencies. |
+
+| ID     | Story                         | Goal                                                    | What                                                      | How (high level)                                        |
+| ------ | ----------------------------- | ------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------- |
+| **D1** | API Dockerfile                | Build and run the API in a container.                   | Dockerfile: app install, env, startup command.            | Mirror current dev setup; avoid premature optimization. |
+| **D2** | docker-compose for full stack | One command: API + DB + broker (and optionally worker). | `docker-compose`: app, db, redis/rabbit, optional worker. | Env and volumes; ensure migrations/seed work.           |
+| **D3** | Env & configuration alignment | One coherent story for settings (local/dev/prod).       | `.env.example` and settings docs updated.                 | Same env vars work bare-metal and in Docker.            |
+| **D4** | Document “run locally” paths  | New dev can start in minutes.                           | README: “Run with Docker” and “Run without Docker”.       | Step-by-step commands; note dependencies.               |
+
 
 ---
 
@@ -102,64 +127,56 @@ Each story has a **goal**, **what** we deliver, and **how** we approach it at a 
 
 **Focus:** Trust the system; collect data needed for a future model.
 
-| ID   | Story | Goal | What | How (high level) |
-|------|--------|------|------|-------------------|
-| **E1** | Structured logging around travel-time flows | Debug and analyze behavior. | Logs: incoming request, chosen provider, duration, errors. | Consistent logger; correlation id / job id where applicable. |
-| **E2** | Basic metrics/counters | Quick health view. | Counts: jobs by status, provider success/fail, latency buckets. | Logs at first; later Prometheus or similar. |
-| **E3** | Historical travel-time storage design | Start collecting data for a model. | Decide what to store: OD pairs, time, restrictions, provider answer, actual outcome if known. | Table or log sink; optional feature flag to start writing. |
-| **E4** | Data & privacy documentation | Clear expectations. | Short doc: retention, anonymization, intended ML use. | Doc only; optional config for retention. |
+
+| ID     | Story                                       | Goal                               | What                                                                                          | How (high level)                                             |
+| ------ | ------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **E1** | Structured logging around travel-time flows | Debug and analyze behavior.        | Logs: incoming request, chosen provider, duration, errors.                                    | Consistent logger; correlation id / job id where applicable. |
+| **E2** | Basic metrics/counters                      | Quick health view.                 | Counts: jobs by status, provider success/fail, latency buckets.                               | Logs at first; later Prometheus or similar.                  |
+| **E3** | Historical travel-time storage design       | Start collecting data for a model. | Decide what to store: OD pairs, time, restrictions, provider answer, actual outcome if known. | Table or log sink; optional feature flag to start writing. Align with *Travel-time data, clustering, and learning — design backlog* (append-only observations vs. time-bounded context). |
+| **E4** | Data & privacy documentation                | Clear expectations.                | Short doc: retention, anonymization, intended ML use.                                         | Doc only; optional config for retention.                     |
+
 
 ---
 
-## Story A1 — Concrete definition (Travel Time Contracts)
+## Story A1 — Travel time contracts (summary)
 
-Defined here so implementation can start later without re-deciding the core shapes. Adjust as we learn.
+**Implemented:** Pydantic models in `app/travel_times_subsystem/schemas.py` (`TravelTimeRequest`, `TravelTimeResult`, `LatLng`, `DeliveryPointRef`, legs, errors, enums).
 
-### TravelTimeRequest
+Full field tables, matrix ordering rules, and a completion checklist: **[stories/a1-travel-time-contracts.md](stories/a1-travel-time-contracts.md)**.
 
-Represents a single logical request for travel time information. All providers receive the same structure; they may ignore unsupported fields.
+---
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `origins` | list of location refs | yes | One or more origins (e.g. `{"lat": float, "lng": float}` or `{"delivery_point_id": int}`). |
-| `destinations` | list of location refs | yes | One or more destinations (same shape as origins). |
-| `departure_time` | datetime or null | no | When the trip departs; `null` = “now” or “unspecified”. Affects live traffic where supported. |
-| `transport_mode` | enum/string | no | e.g. `driving`, `walking`, `bicycling`, `transit`. Default TBD (e.g. `driving`). |
-| `restrictions` | object or null | no | Optional restrictions bundle (time windows, avoid tolls, max duration, etc.). Shape defined in Epic C. |
-| `metadata` | object or null | no | Optional: `scenario_id`, `user_id`, `request_id` for logging and analytics. |
+## Story A2 — Provider, engine, resolver (summary)
 
-**Location ref:** Either `{"lat": float, "lng": float}` or a reference like `{"delivery_point_id": int}` that the engine resolves before calling providers. Resolution can happen inside the engine so providers only see coordinates if we want.
+**Implemented:** `TravelTimeProvider` / `TravelTimeProviderError` in `providers.py`; `TravelTimeEngine` / `EngineStrategy` in `engine.py`; `LocationResolver` / `LocationResolutionError` / `DbLocationResolver` in `resolvers.py`.
 
-### TravelTimeResult
+Providers receive requests where every location is already a **`LatLng`**; the engine resolves **`DeliveryPointRef`** before calling any provider. **`EngineStrategy`** controls single-provider vs fallback chain.
 
-Represents the result of a travel-time request. One result per request; matrix results are flattened or keyed by (origin_index, destination_index).
+Full class/method tables, exception rules, and flow: **[stories/a2-provider-engine-resolver.md](stories/a2-provider-engine-resolver.md)**. Architecture context (patterns, layers): **[architecture/travel-time-subsystem.md](architecture/travel-time-subsystem.md)**.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `request_id` | string or null | Optional correlation id from the request. |
-| `provider` | string | Which provider answered (e.g. `google`, `historical`, `ml`). |
-| `legs` | list of leg results | One entry per (origin, destination) pair in the same order as the implied matrix (origins × destinations). |
-| `errors` | list of error items | Per-leg or global errors (e.g. no route, provider timeout). |
+---
 
-**Leg result** (one per origin–destination pair):
+## Story A3 — Google Maps provider (summary)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `origin_index` | int | Index into `request.origins`. |
-| `destination_index` | int | Index into `request.destinations`. |
-| `duration_seconds` | int or null | Travel time in seconds; `null` if unknown or error. |
-| `distance_meters` | int or null | Distance in meters; `null` if not provided. |
-| `confidence` | string or null | Optional: e.g. `high`, `medium`, `low`, `unknown`. For ML/caching. |
-| `error` | string or null | If this leg failed, a short message; otherwise `null`. |
+**Implemented:** `GoogleTravelTimeProvider` (Distance Matrix), settings in `app/config.py`, tests with mocked HTTP. Wiring through routes remains **A4**.
 
-**Error item:** e.g. `{"leg": (origin_index, destination_index) or null, "message": str, "code": str optional}`.
+Spec and checklist: **[stories/a3-google-maps-provider.md](stories/a3-google-maps-provider.md)**.
 
-### Design notes for A1
+---
 
-- **Matrix vs single:** The same contract supports “one origin, one destination” (list length 1) or N×M matrix. Providers that only support 1:1 can be called in a loop or batched by the engine.
-- **Restrictions:** In v1, request carries an opaque `restrictions` object; Epic C will define its shape. Providers document which restrictions they support.
-- **Provider attribution:** Every result identifies the provider so we can log, compare, and fall back correctly.
-- **Extensibility:** Later we can add `alternatives`, `polyline`, or `raw_response` without breaking the core fields.
+## Story A4 — Integrate engine into API flows (summary)
+
+**Implemented:** `POST /api/travel-times` route in `app/api/routes/travel_times.py`; `get_travel_time_engine` dependency in `app/dependencies.py` (currently hard-coded to Google + `EngineStrategy.SINGLE`). Route is a plain `def` (offloaded to thread pool by FastAPI). Provider selection moves to config in **A5**.
+
+Full spec and checklist: **[stories/a4-integrate-engine-into-api-flows.md](stories/a4-integrate-engine-into-api-flows.md)**.
+
+---
+
+## Story A5 — Provider configuration & feature flags (next)
+
+**Goal:** Operators control which providers are active, their order, and the engine strategy via `TRAVEL_TIME_PROVIDERS` and `TRAVEL_TIME_STRATEGY` env vars. A new provider (ML, historical) will register in one place in `provider_factory.py` — no handler changes.
+
+Full spec: **[stories/a5-provider-configuration.md](stories/a5-provider-configuration.md)**.
 
 ---
 
@@ -169,8 +186,8 @@ Represents the result of a travel-time request. One result per request; matrix r
 - **Epic B** depends on A (at least A1–A4) so that the travel-time job task calls the engine. B1–B2 can start in parallel with A; B3–B5 after engine integration.
 - **Epic C** restrictions feed into the engine (A) and into the solver; C1–C2 can progress with A; C3–C4 after request/result shapes and engine interface are stable.
 - **Epic D** (Docker) is largely independent; can be done in parallel or early for dev experience.
-- **Epic E** can start with E1 (logging) as soon as we have request/response flows; E3–E4 align with Phase 2 of the travel-time rollout.
+- **Epic E** can start with E1 (logging) as soon as we have request/response flows; E3–E4 align with Phase 2 of the travel-time rollout. The *Travel-time data, clustering, and learning — design backlog* section informs E3 and later ML work without requiring immediate implementation.
 
 ---
 
-*Last updated: 2025-03 (roadmap created). Adjust this document as we implement and learn.*
+*Last updated: 2026-04-04 — added A5 story guide (provider configuration & feature flags); A4 noted as implemented.*

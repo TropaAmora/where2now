@@ -24,14 +24,21 @@ class Settings(BaseSettings):
     LOG_TO_DB: bool = False
     LOG_DB_LEVEL: str = "WARNING"
 
-    # External APIs (future use, e.g. Google Maps/geocoding)
+    # Google Maps
     GOOGLE_MAPS_API_KEY: Optional[str] = None
+    GOOGLE_DISTANCE_MATRIX_BASE_URL: str = "https://maps.googleapis.com/maps/api/distancematrix/json"
+    GOOGLE_DISTANCE_MATRIX_TIMEOUT: float = 10.0
+    GOOGLE_DISTANCE_MATRIX_MAX_RETRIES: int = 2
 
     # Geocoding
     GEOCODER_ENABLED: bool = True
     GEOCODER_PROVIDER: str = "nominatim" # use "nominatim", "geoapify" or "google"
     GEOCODER_TIMEOUT: float = 5.0
     GEOCODER_API_KEY: str | None = None
+
+    # Travel time subsystem
+    TRAVEL_TIME_PROVIDERS: str = "google"
+    TRAVEL_TIME_STRATEGY: str = "single"
 
     model_config = SettingsConfigDict(
         env_file=".env",
