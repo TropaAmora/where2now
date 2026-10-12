@@ -16,5 +16,30 @@ Each file here is a **developer-focused** supplement to [`docs/roadmap.md`](../r
 | A2 — Provider, engine, resolver | [a2-provider-engine-resolver.md](a2-provider-engine-resolver.md) |
 | A3 — Google Maps provider | [a3-google-maps-provider.md](a3-google-maps-provider.md) |
 | A4 — Integrate engine into API flows | [a4-integrate-engine-into-api-flows.md](a4-integrate-engine-into-api-flows.md) |
+| A5 — Provider configuration | [a5-provider-configuration.md](a5-provider-configuration.md) |
 
-Add new story files here as you start each story (B1, C1, …) so the roadmap does not grow into a single unmaintainable file.
+## Job system (Epic B)
+
+| Story | Document |
+|-------|----------|
+| B1 — Job domain model | [b1-job-domain-model.md](b1-job-domain-model.md) |
+| B2 — Job lifecycle | [b2-job-lifecycle-management.md](b2-job-lifecycle-management.md) |
+| B3 — Celery base | [b3-celery-base-configuration.md](b3-celery-base-configuration.md) |
+| B4 — Travel time job task | [b4-travel-time-job-task.md](b4-travel-time-job-task.md) |
+| B5 — Job API endpoints | [b5-job-api-endpoints.md](b5-job-api-endpoints.md) |
+
+## Route plan POC (Epic F)
+
+| Story | Document |
+|-------|----------|
+| F1 — Minimal route plan | [f1-minimal-route-plan.md](f1-minimal-route-plan.md) |
+
+Example: [../examples/depot-and-stops.md](../examples/depot-and-stops.md) (depot + 10–20 stops)
+
+## Restrictions (Epic C)
+
+| Story | Document |
+|-------|----------|
+| C1 — Restrictions model | [c1-restrictions-model.md](c1-restrictions-model.md) |
+
+Add new story files here as you start each story so the roadmap does not grow into a single unmaintainable file.

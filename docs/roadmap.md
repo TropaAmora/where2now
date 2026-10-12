@@ -13,7 +13,11 @@ The roadmap stays **short and scannable** (epics, order, dependencies). Deeper m
 
 **Travel time (Epic A) today:** [architecture/travel-time-subsystem.md](architecture/travel-time-subsystem.md) · [stories/a1-travel-time-contracts.md](stories/a1-travel-time-contracts.md) · [stories/a2-provider-engine-resolver.md](stories/a2-provider-engine-resolver.md) · [stories/a3-google-maps-provider.md](stories/a3-google-maps-provider.md) · [stories/a4-integrate-engine-into-api-flows.md](stories/a4-integrate-engine-into-api-flows.md) · [stories/a5-provider-configuration.md](stories/a5-provider-configuration.md)
 
-**Job system (Epic B) — in progress:** [stories/b1-job-domain-model.md](stories/b1-job-domain-model.md) · [stories/b2-job-lifecycle-management.md](stories/b2-job-lifecycle-management.md) · [stories/b3-celery-base-configuration.md](stories/b3-celery-base-configuration.md) · [stories/b4-travel-time-job-task.md](stories/b4-travel-time-job-task.md) · [stories/b5-job-api-endpoints.md](stories/b5-job-api-endpoints.md)
+**Job system (Epic B):** [stories/b1-job-domain-model.md](stories/b1-job-domain-model.md) · [stories/b2-job-lifecycle-management.md](stories/b2-job-lifecycle-management.md) · [stories/b3-celery-base-configuration.md](stories/b3-celery-base-configuration.md) · [stories/b4-travel-time-job-task.md](stories/b4-travel-time-job-task.md) · [stories/b5-job-api-endpoints.md](stories/b5-job-api-endpoints.md)
+
+**Route plan POC (Epic F) — next:** [stories/f1-minimal-route-plan.md](stories/f1-minimal-route-plan.md) · example [examples/depot-and-stops.md](examples/depot-and-stops.md)
+
+**Restrictions (Epic C) — after F1 POC:** [stories/c1-restrictions-model.md](stories/c1-restrictions-model.md)
 
 ---
 
@@ -102,11 +106,25 @@ Each story has a **goal**, **what** we deliver, and **how** we approach it at a 
 
 | ID     | Story                                            | Goal                                                             | What                                                                                                         | How (high level)                                                              |
 | ------ | ------------------------------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| **C1** | Restrictions model & schema design               | Flexible but bounded representation of constraints.              | Fields: transport modes, time windows, max route duration, max walking per leg, avoid tolls/highways, etc.   | Agree v1 set; Pydantic + DB if we persist restrictions; leave room to extend. |
+| **C1** | Restrictions model & schema design               | Typed **optional** rules (no default values in code).            | `TravelRestrictions`, `RouteConstraints`, optional `TimeWindow` — see [stories/c1-restrictions-model.md](stories/c1-restrictions-model.md). | Pydantic only for v1; replace `dict` on `TravelTimeRequest`; implement **after F1 POC**. |
 | **C2** | Parsing & validation layer                       | Incoming JSON → validated restriction objects with clear errors. | Request schemas; custom validators (e.g. time window logic).                                                 | Pydantic validators; structured error responses from API.                     |
 | **C3** | Integrate restrictions into engine and providers | Restrictions actually influence travel time calculation.         | `TravelTimeRequest` carries restrictions; Google provider uses what it supports (e.g. mode, departure_time). | Thread restrictions through engine; per-provider support matrix.              |
 | **C4** | API routes & documentation                       | Users know how to send restrictions.                             | Endpoints accept restriction objects; docs show examples.                                                    | Backward compatibility where needed; add “recipe” examples.                   |
 
+
+---
+
+### Epic F — Route plan (POC)
+
+**Focus:** Answer “given ~10–20 stops, what’s a sensible route?” — the core product demo. Constraints optional; real data from examples, not invented in code.
+
+
+| ID     | Story                 | Goal                                      | What                                                                 | How (high level)                                                                 |
+| ------ | --------------------- | ----------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **F1** | Minimal route plan    | Ordered stop list + travel times for a day. | `POST /api/route-plans`: depot + stop IDs → order + legs + totals. | Travel-time matrix via engine → simple TSP/heuristic → response. See [stories/f1-minimal-route-plan.md](stories/f1-minimal-route-plan.md). |
+
+
+**Example scenario:** [examples/depot-and-stops.md](examples/depot-and-stops.md) (1 depot + 10–20 real addresses) · [fixtures/examples/depot-and-stops.json](../fixtures/examples/depot-and-stops.json) · [examples/demo-script.md](examples/demo-script.md)
 
 ---
 
@@ -174,9 +192,9 @@ Full spec and checklist: **[stories/a4-integrate-engine-into-api-flows.md](stori
 
 ---
 
-## Story A5 — Provider configuration & feature flags (next)
+## Story A5 — Provider configuration & feature flags (summary)
 
-**Goal:** Operators control which providers are active, their order, and the engine strategy via `TRAVEL_TIME_PROVIDERS` and `TRAVEL_TIME_STRATEGY` env vars. A new provider (ML, historical) will register in one place in `provider_factory.py` — no handler changes.
+**Implemented:** `TRAVEL_TIME_PROVIDERS` and `TRAVEL_TIME_STRATEGY` in `app/config.py`; `provider_factory.py` builds engine at startup; `ConfigurationError` on bad config.
 
 Full spec: **[stories/a5-provider-configuration.md](stories/a5-provider-configuration.md)**.
 
@@ -200,12 +218,13 @@ Tables with `tenant_id` today: `clients`, `delivery_points`, `jobs` (B1, not yet
 
 ## Ordering & dependencies
 
-- **Epic A** is the backbone: A1 → A2 → A3 → A4 → A5. Engine and contracts should be in place before we rely on them in jobs and restrictions.
-- **Epic B** depends on A (at least A1–A4) so that the travel-time job task calls the engine. B1–B2 can start in parallel with A; B3–B5 after engine integration.
-- **Epic C** restrictions feed into the engine (A) and into the solver; C1–C2 can progress with A; C3–C4 after request/result shapes and engine interface are stable.
+- **Epic A** is the backbone: A1 → A2 → A3 → A4 → A5. **Done.**
+- **Epic B** depends on A; travel-time jobs call the engine. **Done.**
+- **Epic F (POC) — do next:** F1 minimal route plan → run [demo-script](examples/demo-script.md) with [depot-and-stops](examples/depot-and-stops.md) once real addresses are collected.
+- **Epic C — after F1 POC:** C1 typed optional schemas → C2 validation → C3 engine → C4 API docs. C1 does not block F1.
 - **Epic D** (Docker) is largely independent; can be done in parallel or early for dev experience.
 - **Epic E** can start with E1 (logging) as soon as we have request/response flows; E3–E4 align with Phase 2 of the travel-time rollout. The *Travel-time data, clustering, and learning — design backlog* section informs E3 and later ML work without requiring immediate implementation.
 
 ---
 
-*Last updated: 2026-04-04 — added A5 story guide; A4 noted as implemented; added B1–B5 story guides; B2 and B3 implemented. B4 and B5 story guides added. Epic B complete. Added tenant_id cross-cutting convention; applied to clients, delivery_points, and jobs tables.*
+*Last updated: 2026-07-23 — A5 marked implemented; Epic F (F1 route plan POC) added; C1 story guide; example scenario + demo script skeletons; fixed build order: F1 then C1.*

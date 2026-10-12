@@ -1,0 +1,31 @@
+{
+  "_comment": "Template: 1 depot + 10-20 stops with real addresses. Do not commit sensitive customer details — use labels like stop_01 if needed.",
+  "scenario_id": "depot-and-stops",
+  "description": "Real B2B delivery run: one depot, roughly 10-20 stop addresses",
+  "depot": {
+    "label": "depot",
+    "address_line1": null,
+    "city": null,
+    "postal_code": null,
+    "country": null,
+    "latitude": null,
+    "longitude": null
+  },
+  "stops": [
+    {
+      "label": "stop_01",
+      "address_line1": null,
+      "city": null,
+      "postal_code": null,
+      "country": null,
+      "latitude": null,
+      "longitude": null
+    }
+  ],
+  "optional_planning_hints": {
+    "_comment": "All optional. Leave null until confirmed from the real operation.",
+    "typical_departure_time": null,
+    "must_visit_first_labels": [],
+    "must_visit_last_labels": []
+  }
+}
